@@ -173,4 +173,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-data/hotel_bookings_embeddings.npy
+*hotel_bookings_embeddings.npy
+*faiss_index.bin

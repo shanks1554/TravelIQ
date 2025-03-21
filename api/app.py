@@ -26,7 +26,7 @@ def root():
     return {"message": "✅ FastAPI is running! Use /ask for queries and /analytics for insights."}
 
 # ✅ Load FAISS Index
-faiss_index_path = "faiss_store/faiss_index.bin"
+faiss_index_path = "faiss_index.bin"
 if not os.path.exists(faiss_index_path):
     raise FileNotFoundError(f"❌ ERROR: FAISS index not found at {faiss_index_path}")
 faiss_index = faiss.read_index(faiss_index_path)
