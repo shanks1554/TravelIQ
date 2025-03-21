@@ -86,3 +86,6 @@ Then open: http://127.0.0.1:8000/docs
 
 📄 Implementation Report → implementation_report.md
 
+# 8. Test Results
+
+Test Results are stored in `Test Results` 
