@@ -1,0 +1,16 @@
+pandas
+numpy 
+matplotlib 
+seaborn 
+fastapi 
+uvicorn 
+jupyter 
+notebook 
+langchain
+langchain-huggingface 
+langchain-community 
+sentence-transformers 
+faiss-cpu
+pycountry
+accelerate
+python-dotenv
