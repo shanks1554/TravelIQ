@@ -1,0 +1,85 @@
+{
+    "revenue_trends": {
+        "(2015, Period('2015-07', 'M'))": 926487.08,
+        "(2015, Period('2015-08', 'M'))": 1405796.27,
+        "(2015, Period('2015-09', 'M'))": 1070569.95,
+        "(2015, Period('2015-10', 'M'))": 694217.61,
+        "(2015, Period('2015-11', 'M'))": 329437.89,
+        "(2015, Period('2015-12', 'M'))": 459008.26,
+        "(2016, Period('2016-01', 'M'))": 340233.69,
+        "(2016, Period('2016-02', 'M'))": 600806.83,
+        "(2016, Period('2016-03', 'M'))": 972967.29,
+        "(2016, Period('2016-04', 'M'))": 1125080.74,
+        "(2016, Period('2016-05', 'M'))": 1248959.29,
+        "(2016, Period('2016-06', 'M'))": 1409564.05,
+        "(2016, Period('2016-07', 'M'))": 2094525.48,
+        "(2016, Period('2016-08', 'M'))": 2703454.39,
+        "(2016, Period('2016-09', 'M'))": 1618616.24,
+        "(2016, Period('2016-10', 'M'))": 1338431.64,
+        "(2016, Period('2016-11', 'M'))": 889840.46,
+        "(2016, Period('2016-12', 'M'))": 948695.91,
+        "(2017, Period('2017-01', 'M'))": 739363.83,
+        "(2017, Period('2017-02', 'M'))": 872793.37,
+        "(2017, Period('2017-03', 'M'))": 1075718.04,
+        "(2017, Period('2017-04', 'M'))": 1662076.31,
+        "(2017, Period('2017-05', 'M'))": 1874098.93,
+        "(2017, Period('2017-06', 'M'))": 2086781.0,
+        "(2017, Period('2017-07', 'M'))": 2842012.43,
+        "(2017, Period('2017-08', 'M'))": 3131402.33
+    },
+    "cancellation_rate": "27.49%",
+    "geographical_distribution": {
+        "Portugal": 27453,
+        "United Kingdom": 10433,
+        "France": 8837,
+        "Spain": 7252,
+        "Germany": 5387,
+        "Italy": 3066,
+        "Ireland": 3016,
+        "Belgium": 2081,
+        "Brazil": 1995,
+        "Netherlands": 1911
+    },
+    "lead_time_distribution": {
+        "mean": 79.89,
+        "min": 0,
+        "max": 737,
+        "25th_percentile": 11.0,
+        "50th_percentile (median)": 49.0,
+        "75th_percentile": 125.0
+    },
+    "customer_insights": {
+        "most_common_customer_type": "Transient",
+        "avg_stay_duration": "3.63 nights",
+        "customer_type_distribution": {
+            "Transient": 71986,
+            "Transient-Party": 11727,
+            "Contract": 3139,
+            "Group": 544
+        }
+    },
+    "market_segment_analysis": {
+        "most_common_booking_channel": "TA/TO",
+        "market_segment_distribution": {
+            "Online TA": 51618,
+            "Offline TA/TO": 13889,
+            "Direct": 11804,
+            "Groups": 4942,
+            "Corporate": 4212,
+            "Complementary": 702,
+            "Aviation": 227,
+            "Undefined": 2
+        }
+    },
+    "special_requests_analysis": {
+        "average_special_requests": 0.7,
+        "special_requests_distribution": {
+            "0": 43894,
+            "1": 29017,
+            "2": 11812,
+            "3": 2317,
+            "4": 320,
+            "5": 36
+        }
+    }
+}
