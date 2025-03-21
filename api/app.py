@@ -3,11 +3,17 @@ import json
 import faiss
 import pandas as pd
 import numpy as np
+import logging
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-from typing import Dict, Any
+from pydantic import BaseModel
+from typing import List, Dict, Any
 from langchain_huggingface import HuggingFaceEndpoint
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+
+# Configure Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load Environment Variables
 load_dotenv()
@@ -20,82 +26,118 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Root Path (Confirms API is Running)
+# Root Endpoint
 @app.get("/")
 def root():
     return {"message": "FastAPI is running! Use /ask for queries and /analytics for insights."}
 
 # Load FAISS Index
-faiss_index_path = "faiss_index.bin"
+faiss_index_path = os.path.join(os.getcwd(), "faiss_index.bin")
 if not os.path.exists(faiss_index_path):
     raise FileNotFoundError(f"ERROR: FAISS index not found at {faiss_index_path}")
 faiss_index = faiss.read_index(faiss_index_path)
-print(f"FAISS index loaded from {faiss_index_path}")
+logger.info(f"FAISS index loaded from {faiss_index_path}")
 
-# Load Dataset with Booking Details
-data_path = "data/hotel_bookings_with_embeddings.csv"
+# Load Hotel Booking Dataset
+data_path = os.path.join(os.getcwd(), "data", "hotel_bookings_with_embeddings.csv")
 if not os.path.exists(data_path):
     raise FileNotFoundError(f"ERROR: Dataset not found at {data_path}")
 df = pd.read_csv(data_path)
-print(f"Dataset loaded with {len(df)} records.")
+logger.info(f"Dataset loaded with {len(df)} records.")
 
-# Load Mistral AI Model using LangChain
-llm = HuggingFaceEndpoint(
-    endpoint_url="https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
-    huggingfacehub_api_token=HUGGINGFACE_API_KEY,
-    temperature=0.7,
-    max_length=200
-)
-print("Mistral AI LLM loaded successfully!")
+# Load Sentence Transformer for Embeddings
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# Function to Search FAISS & Retrieve Relevant Bookings
+# Load Mistral AI Model via Hugging Face
+try:
+    llm = HuggingFaceEndpoint(
+        endpoint_url="https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
+        huggingfacehub_api_token=HUGGINGFACE_API_KEY,
+        temperature=0.7,
+        max_length=200
+    )
+    logger.info("Mistral AI LLM loaded successfully!")
+except Exception as e:
+    logger.error(f"Failed to load Mistral AI model: {e}")
+    raise HTTPException(status_code=500, detail="Failed to load AI model.")
+
+# Function to Search FAISS for Relevant Bookings
 def search_faiss(query, top_k=3):
     """Retrieve the most relevant booking details from FAISS."""
-    query_embedding = np.random.rand(1, faiss_index.d)  # Replace with real embeddings
-    distances, indices = faiss_index.search(query_embedding, top_k)
-    
-    retrieved_docs = df.iloc[indices[0]][["hotel", "country", "customer_type"]].astype(str).agg(" | ".join, axis=1).tolist()
-    return retrieved_docs
+    try:
+        query_embedding = embedding_model.encode([query]).astype(np.float32)
+        distances, indices = faiss_index.search(query_embedding, top_k)
+        retrieved_docs = df.iloc[indices[0]][["hotel", "country", "customer_type"]].astype(str).agg(" | ".join, axis=1).tolist()
+        return retrieved_docs
+    except Exception as e:
+        logger.error(f"FAISS search error: {e}")
+        return ["No relevant booking found."]
 
 # Function to Generate AI Response
+# Function to Generate AI Response with Analytics Support
 def generate_answer(query):
-    """Retrieve relevant bookings & generate an AI response."""
+    """Retrieve relevant data from FAISS and analytics, then generate an AI response."""
+    
+    # Search FAISS for related records
     retrieved_docs = search_faiss(query)
 
-    # Prepare prompt for Mistral AI
-    prompt = f"Context: {retrieved_docs}\n\nQuestion: {query}"
+    # Check if the question is about analytics data
+    analytics_keywords = ["cancellation rate", "revenue", "customer insights", "market segment"]
+    analytics_response = None
+
+    for keyword in analytics_keywords:
+        if keyword in query.lower():
+            analytics_response = analytics_data_fixed.get(keyword.replace(" ", "_"), "No data available.")
+
+    # Prepare AI prompt with both FAISS data and analytics if available
+    prompt = f"Context: {retrieved_docs}\n\n"
+    
+    if analytics_response:
+        prompt += f"Additional Data: {analytics_response}\n\n"
+    
+    prompt += f"Question: {query}"
 
     # Generate response from Mistral AI
-    response = llm(prompt)
+    try:
+        response = llm(prompt)
+    except Exception as e:
+        logger.error(f"AI generation error: {e}")
+        response = "Error generating response. Please try again."
 
     return response
 
-# FastAPI Endpoint for AI Queries (POST Only, Accepts Plain Text)
-@app.post("/ask", summary="Ask a booking-related question", response_model=dict)
-def ask_question(request_body: str):
+# Pydantic Model for Multiple Queries
+class QueryRequest(BaseModel):
+    queries: List[str]  # Accepts a list of queries
+
+# FastAPI Endpoint for AI Queries (Multiple Queries Supported)
+@app.post("/ask", summary="Ask multiple booking-related questions", response_model=dict)
+def ask_questions(request: QueryRequest):
     """
-    **Ask a question related to hotel bookings.**  
-    - Just send a plain text question (No JSON needed).
+    *Ask multiple questions related to hotel bookings.*  
+    - Send a JSON object: {"queries": ["Question 1", "Question 2", ...]}
+    - The response contains answers for all queries.
     """
     try:
-        answer = generate_answer(request_body)
-        return {"question": request_body, "answer": answer}
+        answers = {query: generate_answer(query) for query in request.queries}
+        return {"responses": answers}
     except Exception as e:
+        logger.error(f"Error in /ask: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Load Precomputed Analytics Data
-analytics_file = "data/analytics_result.json"
+analytics_file = os.path.join(os.getcwd(), "data", "analytics_result.json")
 
 if os.path.exists(analytics_file):
     with open(analytics_file, "r") as file:
         try:
-            analytics_data = json.load(file)  # Ensure proper JSON loading
-            print(f"Loaded analytics data: {json.dumps(analytics_data, indent=4)}")
+            analytics_data = json.load(file)
+            logger.info("Analytics data loaded successfully.")
         except json.JSONDecodeError:
-            print("ERROR: JSON decoding failed! Defaulting to empty.")
+            logger.error("ERROR: JSON decoding failed! Defaulting to empty.")
             analytics_data = {}
 else:
-    print("ERROR: Analytics file not found! Returning empty data.")
+    logger.error("ERROR: Analytics file not found! Returning empty data.")
     analytics_data = {}
 
 # Convert Keys & Values for Better Readability
@@ -104,15 +146,10 @@ def clean_analytics_data(data):
     fixed_data = {}
 
     for key, value in data.items():
-        # Convert revenue trends (e.g., '2015-07' → 'July 2015')
         if key == "revenue_trends":
             fixed_data[key] = {k.replace("Period('", "").replace("', 'M')", ""): v for k, v in value.items()}
-
-        # Convert cancellation rate "27.49%" → 27.49 (float)
         elif key == "cancellation_rate":
             fixed_data[key] = float(value.replace("%", ""))
-
-        # Keep all other values as-is
         else:
             fixed_data[key] = value
 
@@ -120,41 +157,45 @@ def clean_analytics_data(data):
 
 analytics_data_fixed = clean_analytics_data(analytics_data)
 
-# Add More Insights
+# Add Extra Insights to Analytics
 def add_extra_insights(data):
     """Compute & add extra insights to analytics data."""
-    new_insights = {
-        "most_booked_hotel": "Resort Hotel" if analytics_data["customer_insights"]["most_common_customer_type"] == "Transient" else "City Hotel",
-        "peak_booking_month": max(analytics_data["revenue_trends"], key=analytics_data["revenue_trends"].get),
-        "average_revenue_per_booking": round(sum(analytics_data["revenue_trends"].values()) / len(analytics_data["revenue_trends"]), 2)
-    }
-    data.update(new_insights)
+    try:
+        new_insights = {
+            "most_booked_hotel": "Resort Hotel" if analytics_data["customer_insights"]["most_common_customer_type"] == "Transient" else "City Hotel",
+            "peak_booking_month": max(analytics_data["revenue_trends"], key=analytics_data["revenue_trends"].get),
+            "average_revenue_per_booking": round(sum(analytics_data["revenue_trends"].values()) / len(analytics_data["revenue_trends"]), 2)
+        }
+        data.update(new_insights)
+    except Exception as e:
+        logger.error(f"Error adding extra insights: {e}")
+
     return data
 
 analytics_data_fixed = add_extra_insights(analytics_data_fixed)
 
-# Analytics Response Model with Example Values for Swagger UI
+# Analytics Response Model
 class AnalyticsResponse(BaseModel):
-    revenue_trends: Dict[str, float] = Field(example={"2015-07": 926487.08, "2015-08": 1405796.27})
-    cancellation_rate: float = Field(example=27.49)
-    lead_time_distribution: Dict[str, Any] = Field(example={"mean": 79.89, "min": 0, "max": 737, "50th_percentile (median)": 49})
-    geographical_distribution: Dict[str, int] = Field(example={"Portugal": 27453, "United Kingdom": 10433, "France": 8837})
-    customer_insights: Dict[str, Any] = Field(example={"most_common_customer_type": "Transient", "avg_stay_duration": "3.63 nights"})
-    market_segment_analysis: Dict[str, Any] = Field(example={"most_common_booking_channel": "TA/TO", "market_segment_distribution": {"Online TA": 51618}})
-    special_requests_analysis: Dict[str, Any] = Field(example={"average_special_requests": 0.7, "special_requests_distribution": {"0": 43894, "1": 29017}})
-    most_booked_hotel: str = Field(example="Resort Hotel")
-    peak_booking_month: str = Field(example="2017-08")
-    average_revenue_per_booking: float = Field(example=1325420.74)
+    revenue_trends: Dict[str, float]
+    cancellation_rate: float
+    lead_time_distribution: Dict[str, Any]
+    geographical_distribution: Dict[str, int]
+    customer_insights: Dict[str, Any]
+    market_segment_analysis: Dict[str, Any]
+    special_requests_analysis: Dict[str, Any]
+    most_booked_hotel: str
+    peak_booking_month: str
+    average_revenue_per_booking: float
 
-# FastAPI Endpoint for Analytics (POST Only)
+# FastAPI Endpoint for Analytics (Compulsory)
 @app.post("/analytics", summary="Retrieve hotel booking analytics", response_model=AnalyticsResponse)
 def get_analytics():
     """
-    **Retrieve precomputed analytics data** for hotel bookings.  
+    *Retrieve precomputed analytics data* for hotel bookings.  
     - Includes revenue trends, cancellation rates, etc.
-    - Adds **new insights** like **most booked hotel, peak month, & average revenue per booking**.
+    - Adds *new insights* like *most booked hotel, peak month, & average revenue per booking*.
     """
     if analytics_data_fixed:
-        return analytics_data_fixed  # Fixed JSON keys returned
+        return analytics_data_fixed
     else:
         raise HTTPException(status_code=500, detail="No analytics data available.")
