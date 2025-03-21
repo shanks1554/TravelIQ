@@ -9,46 +9,46 @@ from typing import Dict, Any
 from langchain_huggingface import HuggingFaceEndpoint
 from dotenv import load_dotenv
 
-# ✅ Load Environment Variables
+# Load Environment Variables
 load_dotenv()
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
-# ✅ Initialize FastAPI
+# Initialize FastAPI
 app = FastAPI(
     title="TravelIQ API",
     description="Ask questions about hotel bookings & retrieve analytics.",
     version="1.0.0"
 )
 
-# ✅ Root Path (Confirms API is Running)
+# Root Path (Confirms API is Running)
 @app.get("/")
 def root():
-    return {"message": "✅ FastAPI is running! Use /ask for queries and /analytics for insights."}
+    return {"message": "FastAPI is running! Use /ask for queries and /analytics for insights."}
 
-# ✅ Load FAISS Index
+# Load FAISS Index
 faiss_index_path = "faiss_index.bin"
 if not os.path.exists(faiss_index_path):
-    raise FileNotFoundError(f"❌ ERROR: FAISS index not found at {faiss_index_path}")
+    raise FileNotFoundError(f"ERROR: FAISS index not found at {faiss_index_path}")
 faiss_index = faiss.read_index(faiss_index_path)
-print(f"✅ FAISS index loaded from {faiss_index_path}")
+print(f"FAISS index loaded from {faiss_index_path}")
 
-# ✅ Load Dataset with Booking Details
+# Load Dataset with Booking Details
 data_path = "data/hotel_bookings_with_embeddings.csv"
 if not os.path.exists(data_path):
-    raise FileNotFoundError(f"❌ ERROR: Dataset not found at {data_path}")
+    raise FileNotFoundError(f"ERROR: Dataset not found at {data_path}")
 df = pd.read_csv(data_path)
-print(f"✅ Dataset loaded with {len(df)} records.")
+print(f"Dataset loaded with {len(df)} records.")
 
-# ✅ Load Mistral AI Model using LangChain
+# Load Mistral AI Model using LangChain
 llm = HuggingFaceEndpoint(
     endpoint_url="https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
     huggingfacehub_api_token=HUGGINGFACE_API_KEY,
     temperature=0.7,
     max_length=200
 )
-print("✅ Mistral AI LLM loaded successfully!")
+print("Mistral AI LLM loaded successfully!")
 
-# ✅ Function to Search FAISS & Retrieve Relevant Bookings
+# Function to Search FAISS & Retrieve Relevant Bookings
 def search_faiss(query, top_k=3):
     """Retrieve the most relevant booking details from FAISS."""
     query_embedding = np.random.rand(1, faiss_index.d)  # Replace with real embeddings
@@ -57,20 +57,20 @@ def search_faiss(query, top_k=3):
     retrieved_docs = df.iloc[indices[0]][["hotel", "country", "customer_type"]].astype(str).agg(" | ".join, axis=1).tolist()
     return retrieved_docs
 
-# ✅ Function to Generate AI Response
+# Function to Generate AI Response
 def generate_answer(query):
     """Retrieve relevant bookings & generate an AI response."""
     retrieved_docs = search_faiss(query)
 
-    # ✅ Prepare prompt for Mistral AI
+    # Prepare prompt for Mistral AI
     prompt = f"Context: {retrieved_docs}\n\nQuestion: {query}"
 
-    # ✅ Generate response from Mistral AI
+    # Generate response from Mistral AI
     response = llm(prompt)
 
     return response
 
-# ✅ FastAPI Endpoint for AI Queries (POST Only, Accepts Plain Text)
+# FastAPI Endpoint for AI Queries (POST Only, Accepts Plain Text)
 @app.post("/ask", summary="Ask a booking-related question", response_model=dict)
 def ask_question(request_body: str):
     """
@@ -83,22 +83,22 @@ def ask_question(request_body: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ✅ Load Precomputed Analytics Data
+# Load Precomputed Analytics Data
 analytics_file = "data/analytics_result.json"
 
 if os.path.exists(analytics_file):
     with open(analytics_file, "r") as file:
         try:
-            analytics_data = json.load(file)  # ✅ Ensure proper JSON loading
-            print(f"✅ Loaded analytics data: {json.dumps(analytics_data, indent=4)}")
+            analytics_data = json.load(file)  # Ensure proper JSON loading
+            print(f"Loaded analytics data: {json.dumps(analytics_data, indent=4)}")
         except json.JSONDecodeError:
-            print("❌ ERROR: JSON decoding failed! Defaulting to empty.")
+            print("ERROR: JSON decoding failed! Defaulting to empty.")
             analytics_data = {}
 else:
-    print("❌ ERROR: Analytics file not found! Returning empty data.")
+    print("ERROR: Analytics file not found! Returning empty data.")
     analytics_data = {}
 
-# ✅ Convert Keys & Values for Better Readability
+# Convert Keys & Values for Better Readability
 def clean_analytics_data(data):
     """Convert analytics keys & values for better formatting."""
     fixed_data = {}
@@ -120,7 +120,7 @@ def clean_analytics_data(data):
 
 analytics_data_fixed = clean_analytics_data(analytics_data)
 
-# ✅ Add More Insights
+# Add More Insights
 def add_extra_insights(data):
     """Compute & add extra insights to analytics data."""
     new_insights = {
@@ -133,7 +133,7 @@ def add_extra_insights(data):
 
 analytics_data_fixed = add_extra_insights(analytics_data_fixed)
 
-# ✅ Analytics Response Model with Example Values for Swagger UI
+# Analytics Response Model with Example Values for Swagger UI
 class AnalyticsResponse(BaseModel):
     revenue_trends: Dict[str, float] = Field(example={"2015-07": 926487.08, "2015-08": 1405796.27})
     cancellation_rate: float = Field(example=27.49)
@@ -146,7 +146,7 @@ class AnalyticsResponse(BaseModel):
     peak_booking_month: str = Field(example="2017-08")
     average_revenue_per_booking: float = Field(example=1325420.74)
 
-# ✅ FastAPI Endpoint for Analytics (POST Only)
+# FastAPI Endpoint for Analytics (POST Only)
 @app.post("/analytics", summary="Retrieve hotel booking analytics", response_model=AnalyticsResponse)
 def get_analytics():
     """
@@ -155,6 +155,6 @@ def get_analytics():
     - Adds **new insights** like **most booked hotel, peak month, & average revenue per booking**.
     """
     if analytics_data_fixed:
-        return analytics_data_fixed  # ✅ Fixed JSON keys returned
+        return analytics_data_fixed  # Fixed JSON keys returned
     else:
-        raise HTTPException(status_code=500, detail="❌ No analytics data available.")
+        raise HTTPException(status_code=500, detail="No analytics data available.")
