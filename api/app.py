@@ -15,7 +15,7 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 # ✅ Initialize FastAPI
 app = FastAPI(
-    title="Hotel Booking AI API",
+    title="TravelIQ API",
     description="Ask questions about hotel bookings & retrieve analytics.",
     version="1.0.0"
 )
